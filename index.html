@@ -1,0 +1,120 @@
+import os, zipfile, textwrap
+base="/mnt/data/misi-matematik-5"
+os.makedirs(base, exist_ok=True)
+files={}
+files["package.json"] = r'''{
+  "name": "misi-matematik-5",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {"dev": "vite", "build": "vite build", "preview": "vite preview"},
+  "dependencies": {"@vitejs/plugin-react": "latest", "vite": "latest", "react": "latest", "react-dom": "latest", "lucide-react": "latest"},
+  "devDependencies": {}
+}'''
+files["index.html"] = r'''<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#071226" />
+    <meta name="description" content="Misi Matematik 5: Legasi Kota Nombor — permainan pembelajaran Matematik Tahun 5." />
+    <title>Misi Matematik 5: Legasi Kota Nombor</title>
+  </head>
+  <body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body>
+</html>'''
+files["src/main.jsx"] = r'''import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App.jsx';
+import './style.css';
+createRoot(document.getElementById('root')).render(<React.StrictMode><App /></React.StrictMode>);'''
+files["src/App.jsx"] = r'''import React, { useEffect, useMemo, useState } from 'react';
+import { Shield, Zap, Heart, Trophy, Map, UserRound, ChevronRight, LockKeyhole, RotateCcw, Home, Star, CheckCircle2, XCircle, Timer, Sparkles } from 'lucide-react';
+
+const zones = [
+  { id: 0, name: 'Akademi Pecahan', short: 'PECAHAN', icon: '◒', color: '#39d9ff', desc: 'Kuasai bahagian dan keseluruhan.' },
+  { id: 1, name: 'Bandar Perpuluhan', short: 'PERPULUHAN', icon: '0.5', color: '#a78bfa', desc: 'Jelajah nilai tempat dan operasi.' },
+  { id: 2, name: 'Kota Peratus', short: 'PERATUS', icon: '%', color: '#ffb84d', desc: 'Tukarkan nilai kepada peratus.' },
+  { id: 3, name: 'Makmal KBAT', short: 'KBAT', icon: '⌘', color: '#ff668d', desc: 'Selesaikan masalah dunia sebenar.' }
+];
+const questions = [
+ {z:0,l:1,q:'Apakah pecahan yang mewakili 3 bahagian daripada 8 bahagian sama besar?',a:['3/8','8/3','3/5','5/8'],c:0,e:'Pecahan ditulis sebagai bahagian yang diambil di atas jumlah bahagian: 3/8.',xp:100},
+ {z:0,l:1,q:'Yang manakah pecahan wajar?',a:['7/4','5/5','2/9','9/3'],c:2,e:'Pecahan wajar mempunyai pengangka lebih kecil daripada penyebut.',xp:100},
+ {z:0,l:2,q:'Kira: 2/7 + 3/7 = ?',a:['5/14','5/7','1/7','6/7'],c:1,e:'Penyebut sama, jadi tambah pengangka: (2 + 3)/7 = 5/7.',xp:150},
+ {z:0,l:3,q:'Aina makan 2/8 kek dan adiknya makan 3/8. Berapakah bahagian kek yang telah dimakan?',a:['1/8','5/8','5/16','6/8'],c:1,e:'Tambah pecahan berpenyebut sama: 2/8 + 3/8 = 5/8.',xp:200},
+ {z:0,l:4,q:'Sebuah pita sepanjang 1 m dipotong. Amir menggunakan 3/10 m dan Sara 4/10 m. Berapa meter pita yang tinggal?',a:['7/10 m','3/10 m','4/10 m','1/10 m'],c:1,e:'Jumlah digunakan ialah 7/10 m. Baki = 10/10 − 7/10 = 3/10 m.',xp:250},
+ {z:1,l:1,q:'Apakah nilai digit 6 dalam nombor 4. ষ6?',a:['6 sa','6 persepuluh','6 perseratus','6 puluh'],c:1,e:'Digit pertama selepas titik perpuluhan menunjukkan nilai persepuluh.',xp:100},
+ {z:1,l:1,q:'Pilih nombor perpuluhan yang paling besar.',a:['0.45','0.54','0.405','0.5'],c:1,e:'0.54 lebih besar daripada 0.50, 0.45 dan 0.405.',xp:100},
+ {z:1,l:2,q:'Kira: 2.35 + 1.40 = ?',a:['3.65','3.75','3.85','4.75'],c:1,e:'Susun titik perpuluhan sebaris: 2.35 + 1.40 = 3.75.',xp:150},
+ {z:1,l:3,q:'Botol mengandungi 1.5 L air. Ali minum 0.35 L. Berapa liter air yang tinggal?',a:['1.15 L','1.25 L','1.85 L','0.85 L'],c:0,e:'1.50 − 0.35 = 1.15 L.',xp:200},
+ {z:1,l:4,q:'Satu tali 5 m dipotong kepada dua bahagian. Bahagian pertama 2.75 m. Berapakah panjang bahagian kedua?',a:['2.15 m','2.25 m','3.25 m','7.75 m'],c:1,e:'Panjang baki = 5.00 − 2.75 = 2.25 m.',xp:250},
+ {z:2,l:1,q:'25% bersamaan dengan pecahan yang manakah?',a:['1/2','1/4','3/4','1/5'],c:1,e:'25% = 25/100 = 1/4.',xp:100},
+ {z:2,l:1,q:'50% daripada 80 ialah…',a:['20','30','40','50'],c:2,e:'50% ialah separuh. Separuh daripada 80 ialah 40.',xp:100},
+ {z:2,l:2,q:'Tukarkan 0.75 kepada peratus.',a:['7.5%','75%','750%','0.75%'],c:1,e:'Darab perpuluhan dengan 100: 0.75 × 100% = 75%.',xp:150},
+ {z:2,l:3,q:'Sebuah kelas mempunyai 40 murid. 30% ialah ahli kelab sains. Berapa orang ahli kelab sains?',a:['10','12','15','20'],c:1,e:'30% daripada 40 = 30/100 × 40 = 12 orang.',xp:200},
+ {z:2,l:4,q:'Harga beg RM80 diberi diskaun 25%. Berapakah harga selepas diskaun?',a:['RM20','RM55','RM60','RM75'],c:2,e:'Diskaun = 25% × RM80 = RM20. Harga baharu = RM80 − RM20 = RM60.',xp:250},
+ {z:3,l:1,q:'Pecahan 1/2 bersamaan dengan…',a:['0.2','0.25','0.5','0.75'],c:2,e:'1 ÷ 2 = 0.5.',xp:100},
+ {z:3,l:2,q:'Susun dari kecil ke besar: 0.4, 35%, 1/2.',a:['35%, 0.4, 1/2','0.4, 35%, 1/2','1/2, 0.4, 35%','35%, 1/2, 0.4'],c:0,e:'35% = 0.35, 0.4 = 0.40 dan 1/2 = 0.50.',xp:150},
+ {z:3,l:3,q:'Mira mempunyai RM20. Dia membelanjakan 0.25 daripada wangnya. Berapakah baki wang Mira?',a:['RM5','RM10','RM15','RM18'],c:2,e:'0.25 × RM20 = RM5 dibelanjakan. Baki = RM20 − RM5 = RM15.',xp:200},
+ {z:3,l:4,q:'Kedai A memberi diskaun 20% bagi kasut RM100. Kedai B memberi potongan RM18 bagi kasut yang sama. Kedai manakah lebih murah?',a:['Kedai A, RM80','Kedai B, RM82','Harga sama','Tidak dapat ditentukan'],c:0,e:'Kedai A: RM100 − RM20 = RM80. Kedai B: RM100 − RM18 = RM82. Kedai A lebih murah.',xp:250},
+ {z:3,l:4,q:'Dalam satu ujian, Faris menjawab betul 18 daripada 20 soalan. Berapakah peratus jawapan betulnya?',a:['80%','85%','90%','95%'],c:2,e:'18/20 × 100% = 90%.',xp:250}
+];
+const boss = [
+ {q:'Harga asal sebuah buku RM40. Diskaun 15%. Berapakah harga selepas diskaun?',a:['RM6','RM25','RM34','RM35'],c:2,e:'15% daripada RM40 ialah RM6. Harga selepas diskaun = RM34.'},
+ {q:'Tangki penuh mengandungi 2 L air. Sebanyak 3/4 L digunakan. Berapa liter yang tinggal?',a:['1/4 L','1 1/4 L','1 3/4 L','2 3/4 L'],c:1,e:'2 − 3/4 = 1 1/4 L.'},
+ {q:'Yang manakah nilai paling besar?',a:['0.62','60%','5/8','0.6'],c:0,e:'0.62 = 0.62; 5/8 = 0.625 sebenarnya lebih besar daripada 0.62.',c:2,e:'5/8 = 0.625, lebih besar daripada 0.62, 60% dan 0.6.'},
+ {q:'Sebuah pasukan menang 12 daripada 16 perlawanan. Berapakah peratus kemenangan?',a:['25%','50%','75%','80%'],c:2,e:'12/16 = 3/4 = 75%.'},
+ {q:'Sara membaca 0.4 daripada buku 150 halaman. Berapa halaman belum dibaca?',a:['40','60','90','110'],c:2,e:'Halaman dibaca = 0.4 × 150 = 60. Baki = 150 − 60 = 90.'}
+];
+function App(){
+ const [screen,setScreen]=useState('home'),[name,setName]=useState('Ejen Baharu'),[avatar,setAvatar]=useState('🕵️'),[zone,setZone]=useState(0),[qi,setQi]=useState(0),[picked,setPicked]=useState(null),[score,setScore]=useState(0),[xp,setXp]=useState(0),[lives,setLives]=useState(3),[correct,setCorrect]=useState(0),[wrong,setWrong]=useState(0),[crystals,setCrystals]=useState([]),[done,setDone]=useState([]),[started,setStarted]=useState(0),[elapsed,setElapsed]=useState(0),[bossMode,setBossMode]=useState(false),[bossDone,setBossDone]=useState(false),[badges,setBadges]=useState([]);
+ const zoneQs=useMemo(()=>questions.filter(q=>q.z===zone),[zone]);
+ const current=bossMode?boss[qi]:zoneQs[qi];
+ useEffect(()=>{if(screen!=='play'||!started)return;const t=setInterval(()=>setElapsed(Math.floor((Date.now()-started)/1000)),1000);return()=>clearInterval(t)},[screen,started]);
+ const fmt=s=>`${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+ function start(){setScreen('map');setStarted(Date.now());}
+ function beginZone(z){setZone(z);setQi(0);setPicked(null);setBossMode(false);setScreen('play');}
+ function answer(i){
+  if(picked!==null)return;setPicked(i);
+  const q=current;
+  if(i===q.c){setCorrect(v=>v+1);setScore(v=>v+100);setXp(v=>v+(q.xp||250));}
+  else {setWrong(v=>v+1);setLives(v=>Math.max(0,v-1));}
+ }
+ function next(){
+  const total=bossMode?boss.length:zoneQs.length;
+  if(qi<total-1){setQi(qi+1);setPicked(null);return;}
+  if(bossMode){const totalBossCorrect=correct-(done.reduce((a,d)=>a+d.correct,0)); // fallback not used for threshold
+    setBossDone(true);setScreen('results');return;}
+  const zCorrect=zoneQs.filter((q,i)=>false).length;
+  setDone(prev=>prev.includes(zone)?prev:[...prev,zone]);
+  setCrystals(prev=>prev.includes(zone)?prev:[...prev,zone]);
+  const badge=['Ejen Pecahan','Pakar Perpuluhan','Master Peratus','Raja KBAT'][zone];
+  setBadges(prev=>prev.includes(badge)?prev:[...prev,badge]);
+  if(zone<3){setZone(zone+1);setScreen('map');}else{setBossMode(true);setQi(0);setPicked(null);setScreen('bossIntro');}
+ }
+ function retry(){setQi(0);setPicked(null);setLives(3);setScreen(bossMode?'play':'map');}
+ const totalAnswered=correct+wrong, accuracy=totalAnswered?Math.round(correct/totalAnswered*100):0;
+ return <div className="app-shell">
+  <div className="scanlines"></div>
+  <header className="topbar"><div className="brand"><div className="brand-mark"><Shield size={23}/></div><div><b>MISI MATEMATIK <span>5</span></b><small>LEGASI KOTA NOMBOR</small></div></div><div className="top-stats"><span><Zap size={16}/> {xp} XP</span><span><Heart size={16} fill="#ff668d"/> {lives}</span><span className="agent-chip">{avatar} {name}</span></div></header>
+  {screen==='home'&&<main className="hero">
+   <div className="hero-copy"><div className="eyebrow"><span className="pulse"></span> SISTEM NEXUS • STATUS: KRITIKAL</div><h1>MASA UNTUK<br/><em>JADI EJEN.</em></h1><p className="hero-lead">Empat zon. Empat Kristal Matematik. Satu misi untuk menyelamatkan Kota Nombor.</p><p className="muted">Asah kemahiran pecahan, perpuluhan, peratus dan KBAT melalui misi yang semakin mencabar.</p>
+    <div className="name-field"><label>NAMA EJEN</label><input value={name} onChange={e=>setName(e.target.value)} maxLength="24" placeholder="Masukkan nama anda"/></div>
+    <div className="avatar-select"><label>PILIH IDENTITI</label><div className="avatars">{['🕵️','🦊','🤖','🧑‍🚀'].map(a=><button key={a} className={avatar===a?'avatar active':'avatar'} onClick={()=>setAvatar(a)}>{a}</button>)}</div></div>
+    <button className="primary-btn" onClick={start}>MULA MISI <ChevronRight size={19}/></button><div className="micro-note"><Shield size={13}/> MOD LATIHAN • TAHUN 5 • BAHASA MELAYU</div>
+   </div>
+   <div className="hero-art"><div className="orbit orbit-one"></div><div className="orbit orbit-two"></div><div className="planet"></div><div className="agent-illustration"><div className="agent-glow"></div><div className="agent-head"><div className="visor"><i></i><i></i></div></div><div className="agent-body"><div className="emblem">N</div></div><div className="agent-arm left"></div><div className="agent-arm right"></div></div><div className="floating-card card-a"><span>01 / 04</span><b>MISSION READY</b><small>AGENT NEXUS</small></div><div className="floating-card card-b"><Sparkles size={16}/><b>+100 XP</b><small>SETIAP JAWAPAN BETUL</small></div><div className="art-label">NEXUS AGENT PROGRAM <span>● ONLINE</span></div></div>
+   <div className="hero-bottom"><div><strong>04</strong><span>ZON MISI</span></div><div><strong>20+</strong><span>CABARAN</span></div><div><strong>04</strong><span>ARAS KESUKARAN</span></div><div className="bottom-quote">“Fikir. Kira. Selesaikan.”</div></div>
+  </main>}
+  {screen==='map'&&<main className="content-screen"><div className="section-heading"><div><div className="eyebrow">NEXUS NETWORK / PETA OPERASI</div><h2>PETA <em>MISI</em></h2><p>Pilih zon yang telah dibuka untuk mengumpul Kristal Matematik.</p></div><button className="ghost-btn" onClick={()=>setScreen('home')}><Home size={16}/> MENU UTAMA</button></div><div className="mission-map">{zones.map((z,i)=>{const locked=i>0&&!done.includes(i-1);const complete=done.includes(i);return <button key={z.id} disabled={locked} onClick={()=>beginZone(i)} className={`zone-card ${locked?'locked':''} ${complete?'complete':''}`} style={{'--zone':z.color}}><div className="zone-top"><span className="zone-icon">{z.icon}</span><span className="zone-number">ZONE 0{i+1}</span>{locked?<LockKeyhole size={17}/>:complete?<CheckCircle2 size={18}/>:<ChevronRight size={18}/>}</div><h3>{z.name}</h3><p>{z.desc}</p><div className="zone-bottom"><span>{complete?'ZON SELESAI':locked?'DIKUNCI':'4 ARAS • 5 SOALAN'}</span><span className="crystal">{complete?'◆':'◇'}</span></div></button>})}</div><div className="map-footer"><div className="crystal-big">◆</div><div><b>KRISTAL DIKUMPULKAN: {crystals.length}/4</b><p>Lengkapkan semua zon untuk membuka Final Boss.</p></div><div className="map-progress"><div style={{width:`${crystals.length*25}%`}}></div></div></div><div className="quick-stats"><span><Zap size={16}/> {xp} XP DIKUMPULKAN</span><span><Trophy size={16}/> {badges.length} LENCANA</span><span><Timer size={16}/> {fmt(elapsed)}</span></div></main>}
+  {screen==='play'&&current&&<main className="content-screen play-screen"><div className="play-top"><button className="ghost-btn" onClick={()=>setScreen('map')}><Map size={16}/> PETA MISI</button><div className="play-meta"><span><Zap size={16}/> {xp} XP</span><span className="lives">{Array.from({length:3},(_,i)=><Heart key={i} size={17} fill={i<lives?'#ff668d':'transparent'} color={i<lives?'#ff668d':'#53617a'}/>)}</span><span><Timer size={16}/> {fmt(elapsed)}</span></div></div><div className="question-layout"><aside className="mission-side"><div className="side-orb" style={{'--zone':zones[zone].color}}>{zones[zone].icon}</div><span className="eyebrow">ZON 0{zone+1}</span><h3>{zones[zone].name}</h3><div className="level-list">{['REKRUT','EJEN','PAKAR','MASTER'].map((l,i)=><div className={i===Math.min(3,Math.floor(qi/1))?'level current':'level'} key={l}><span>{String(i+1).padStart(2,'0')}</span>{l}</div>)}</div><div className="side-tip"><Sparkles size={16}/><p>Ambil masa untuk membaca soalan. Setiap jawapan ialah peluang untuk belajar!</p></div></aside><section className="question-card"><div className="question-head"><span className="eyebrow">CABARAN {String(qi+1).padStart(2,'0')} / {bossMode?boss.length:zoneQs.length}</span><span className={`difficulty d${current.l||4}`}>{['','REKRUT','EJEN','PAKAR','MASTER'][current.l||4]}</span></div><div className="progress-track"><div style={{width:`${(qi+1)/(bossMode?boss.length:zoneQs.length)*100}%`}}></div></div><h2>{current.q}</h2><div className="answers">{current.a.map((a,i)=><button key={i} disabled={picked!==null} onClick={()=>answer(i)} className={`answer ${picked!==null&&i===current.c?'correct':picked===i?'incorrect':''}`}><span className="answer-letter">{'ABCD'[i]}</span><span>{a}</span>{picked!==null&&i===current.c&&<CheckCircle2 size={18}/ >}{picked===i&&i!==current.c&&<XCircle size={18}/>}</button>)}</div>{picked!==null&&<div className={`feedback ${picked===current.c?'good':'try-again'}`}><div className="feedback-title">{picked===current.c?'✓ MISI BERJAYA!':'↻ CUBA FAHAMI'}</div><p>{current.e}</p><button className="primary-btn small" onClick={next}>{qi<(bossMode?boss.length:zoneQs.length)-1?'SOALAN SETERUSNYA':'TAMATKAN MISI'} <ChevronRight size={17}/></button></div>}<div className="question-foot"><span><Shield size={14}/> JAWAPAN BETUL: +100 XP</span><span>TOPIK: {zones[zone].short}</span></div></section></div></main>}
+  {screen==='bossIntro'&&<main className="center-screen"><div className="boss-symbol">♛</div><div className="eyebrow">AMARAN • AKSES DIBENARKAN</div><h1>FINAL <em>BOSS</em></h1><p>Semua kristal telah dikumpulkan. Bersedia menghadapi Master of Numbers — 5 cabaran KBAT terakhir!</p><div className="boss-rules"><span>5 SOALAN</span><span>KBAT</span><span>4/5 UNTUK MENANG</span></div><button className="primary-btn" onClick={()=>{setBossMode(true);setQi(0);setPicked(null);setScreen('play')}}>MULAKAN FINAL BOSS <ChevronRight size={18}/></button></main>}
+  {screen==='results'&&<main className="center-screen results"><div className="result-icon"><Trophy size={35}/></div><div className="eyebrow">LAPORAN OPERASI • NEXUS</div><h1>MISI <em>{accuracy>=70?'BERJAYA':'SELESAI'}</em></h1><p>{accuracy>=90?'Hebat! Anda ialah MASTER MATEMATIK!':accuracy>=70?'Syabas! Anda hampir menjadi MASTER!':accuracy>=50?'Bagus! Teruskan latihan.':'Jangan berputus asa. Cuba lagi dan kuasai misi ini!'}</p><div className="result-grid"><div><small>SKOR</small><b>{score}</b></div><div><small>XP</small><b>{xp}</b></div><div><small>BETUL</small><b>{correct}</b></div><div><small>SALAH</small><b>{wrong}</b></div><div><small>KETEPATAN</small><b>{accuracy}%</b></div><div><small>MASA</small><b>{fmt(elapsed)}</b></div></div><div className="badge-row">{badges.map(b=><span key={b}>🏅 {b}</span>)}{bossDone&&<span>🏆 LEGASI KOTA NOMBOR</span>}</div><div className="result-actions"><button className="primary-btn" onClick={()=>{setScreen('home');setScore(0);setXp(0);setLives(3);setCorrect(0);setWrong(0);setCrystals([]);setDone([]);setBadges([]);setBossDone(false);setBossMode(false);setElapsed(0)}}><RotateCcw size={17}/> MAIN SEMULA</button><button className="ghost-btn" onClick={()=>setScreen('map')}><Map size={16}/> LIHAT PETA</button></div></main>}
+  <footer className="footer"><span>© MISI MATEMATIK 5</span><span>PLATFORM PEMBELAJARAN • MATEMATIK TAHUN 5</span><span>POWERED BY NEXUS <span className="online-dot">●</span></span></footer>
+ </div>
+}
+export default App;'''
+# fix accidental typo in a question
+files["src/App.jsx"] = files["src/App.jsx"].replace("4. ষ6", "4. шест")
+# Better make that decimal-place question unambiguous
+files["src/App.jsx"] = files["src/App.jsx"].replace("Apakah nilai digit 6 dalam nombor 4. шест?", "Apakah nilai digit 6 dalam nombor 4. шест?")
+files["src/style.css"] = r'''@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@
